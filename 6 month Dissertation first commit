@@ -75,14 +75,19 @@ pheatmap(assay(vsd)[select,], cluster_rows=FALSE, show_rownames=FALSE,
          cluster_cols=FALSE, annotation_col=df)
 plotPCA(vsd, intgroup="condition")
 GeneID<-rownames(res_prop)
-res_prop<-cbind(GeneID,res_prop)
+res_prop<-cbind(GeneID,res_prop,)
 
-enrichGO(res_prop$GeneID)
+ego<-enrichGO(new_res$GeneID, org.Hs.eg.db, keyType = "ENTREZID")
+goplot(ego, size=0.05)
+
 BiocManager::install("clusterProfiler")
 enrichKEGG('ENSG00000143452')
 
-original_gene_list <- res_prop$log2FoldChange
-names(original_gene_list)<- res_prop$
+new_res<-read_excel(file.choose())
+
+
+original_gene_list <- new_res$log2FoldChange
+names(original_gene_list)<- new_res$GeneID
 gene_list<-na.omit(original_gene_list)
 gene_list = sort(gene_list, decreasing = TRUE)
 
@@ -90,15 +95,27 @@ gene_list = sort(gene_list, decreasing = TRUE)
  keytypes(org.Hs.eg.db)
 
 
-
-  gse <- gseGO(geneList=gene_list, 
+gse <- gseGO(geneList=gene_list, 
             ont ="ALL", 
-            keyType = "SYMBOL", 
+            keyType = "ENTREZID",
+            nPerm = 1000,
+            pvalueCutoff = 'none',
             verbose = TRUE, 
-            OrgDb = org.Hs.eg.db, 
+            OrgDb = org.Hs.eg.db,
             pAdjustMethod = "none")
  
   require(DOSE)
   dotplot(gse, showCategory=10, split=".sign") + facet_grid(.~.sign)
-  
 
+  emapplot(gse, showCategory = 10)
+  cnetplot(gse, categorySize="pvalue", foldChange=gene_list, showCategory = 3)  
+
+  
+  
+kk2 <- gseKEGG(geneList     = gene_list,
+                 organism     = "hsa",
+                 nPerm        = 10000,
+                 pvalueCutoff = "1.0",
+                 pAdjustMethod = "none",
+                 keyType       = "ncbi-geneid")  
+dotplot(kk2, showCategory = 10, title = "Enriched Pathways" , split=".sign") + facet_grid(.~.sign)
