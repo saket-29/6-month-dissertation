@@ -1,0 +1,52 @@
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("GEOquery")
+#defining an object
+gset <- getGEO('GSE65954', getGPL  = FALSE)
+g954<-getGEO(filename="GSE65954.soft.gz")
+length(gset)
+pData(gset)[1:2,]
+#assigning matrix as object
+gset<- gset$GSE65954_series_matrix.txt.gz
+gset
+install.packages("pheatmap")
+#expression data from matrix
+exprs(gset)
+gsetmatrix<-cor(exprs(gset))
+pData(gset)
+pheatmap(gsetmatrix, annotation_col = )
+
+head(gset)
+
+exp_gset<-log2(exprs(gset))
+
+exp_gset<-na.omit(exp_gset)
+summary(exp_gset)
+
+boxplot(exp_gset)
+SampleInfo <- pData(gset)
+SampleInfo <- select(SampleInfo,source_name_ch1, characteristics_ch1.1)
+typeof(SampleInfo)
+
+rownames(SampleInfo) = colnames(gsetmatrix)
+library(limma)
+
+design <- model.matrix(~0+SampleInfo$source_name_ch1)
+colnames(design) <- c("23Gy","9Gy")
+
+fit <- lmFit(exprs(gset), design)
+head(fit$coefficients)
+
+anno<- fData(gset)
+anno
+SampleInfo$source_name_ch1
+
+
+contrasts <- makeContrasts(SampleInfo$source_name_ch1,levels=design)
+fit2 <- contrasts.fit(fit, contrasts)
+fit2 <- eBayes(fit2)
+fit$design
+
+help(make.names)
+
