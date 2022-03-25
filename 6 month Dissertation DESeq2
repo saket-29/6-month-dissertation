@@ -1,0 +1,104 @@
+#load the dataset and convert NA values to zero
+NDF<- read.csv(file.choose())
+NDF[is.na(NDF)] = 0
+
+sum(duplicated(NDF$X))
+
+NDF = NDF[!duplicated(NDF$X), ]
+NDF$X.1 = NULL
+#Assign matrix to data variable, assign rownames for easy DESeq2 processing 
+data <- NDF
+rownames(data) = data$X
+data$X = NULL
+
+#Read in the experiment design metadata file into column data 
+
+coldata = read.csv(file.choose(), row.names = 1)
+#check whether column data and matrixm data match
+
+all(rownames(coldata) == colnames(data))
+
+dds <- DESeqDataSetFromMatrix(countData = data, colData = coldata, design = ~Condition)
+dds <- DESeq(dds)
+
+keep <- rowSums(counts(dds)) >= 10 
+dds <- dds[keep,]
+
+
+
+
+res<-results(dds)
+View(res)
+res <- results(dds, contrast=c("Condition","Young","Old"), alpha =0.05)
+resultsNames(dds)  #try first if error generated
+
+resLFC <- lfcShrink(dds, contrast=c("Condition","Young","Old"), res = res,type = "normal")
+
+plotMA(res, ylim=c(-2,2), legend = TRUE)
+plotMA(resLFC, ylim=c(-2,2))
+
+if (!requireNamespace('BiocManager', quietly = TRUE))
+  install.packages('BiocManager')
+
+BiocManager::install('EnhancedVolcano', force = TRUE)
+
+#Volcano plot for DGE
+EnhancedVolcano(resLFC,
+                lab = rownames(resLFC),
+                x = 'log2FoldChange',
+                y = 'pvalue')
+
+
+summary(resLFC)
+sum(resLFC$padj < 0.05, res$log2FoldChange >1.5, na.rm=TRUE)
+
+
+results_normalised <-  matrix(resLFC$padj < 0.01, res$log2FoldChange >2, na.rm=TRUE)
+#Dispersion estimates
+plotDispEsts(dds)
+
+ntd <- normTransform(dds)
+library("vsn")
+meanSdPlot(assay(ntd))
+#PCA plot
+varst <- vst(dds)
+plotPCA(varst, intgroup= "Condition")
+
+res_prop <-  resLFC[which(abs(resLFC$padj) < 0.05),]
+write.csv(res_prop, "cuttoff_p0.05.csv")
+
+d <- plotCounts(dds, gene=which.min(res$padj), intgroup="Condition", 
+                returnData=TRUE)
+#COndition plot old v/s young
+library("ggplot2")
+ggplot(d, aes(x=Condition, y=count)) + 
+  geom_point(position=position_jitter(w=0.1,h=0)) + 
+  scale_y_log10(breaks=c(25,100,400))
+
+resOrdered <- res[order(res$pvalue),]
+resSig <- subset(resOrdered, padj < 0.1)
+resSig
+
+library("pheatmap")
+select <- order(rowMeans(counts(dds,normalized=TRUE)),
+                decreasing=TRUE)[1:20]
+df <- as.data.frame(colData(dds)[,("Condition")])
+pheatmap(assay(ntd),annotation_col=df)
+
+
+
+#results file- unfilteredd
+
+write.csv(as.data.frame(resOrdered), 
+          file="Aging_res.csv")
+
+
+res3<-res[which(abs(res$log2FoldChange) > 2),]
+res3
+res_proper <- res3[which(abs(res3$pvalue) < 0.05),]
+res_proper<-data.frame(res_proper)
+write.csv(res_proper,"Youngvsaging_p0.05.csv")
+
+
+
+write.csv(data, "aging_dtset_DGE.csv")
