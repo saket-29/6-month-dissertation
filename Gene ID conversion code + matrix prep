@@ -1,0 +1,24 @@
+
+#Using merged matrix prepared from one experiment (merged individual runs)
+fin_ensg_cts$X <- c(org.Hs.egSYMBOL, na.rm = TRUE)
+
+fin_ensg_cts$X = mapIds(org.Hs.eg.db,
+                    keys= fin_ensg_cts$X, #Column containing Ensembl gene ids
+                    column="SYMBOL",
+                    keytype="ENSEMBL",
+                    multiVals="first")
+row.names(fin_ensg_cts)<- fin_ensg_cts$X
+GSE72815$X = NULL
+
+new_df<- merge(fin_ensg_cts, GSE72815, by = 1, all.x = TRUE )
+#read in the new datasets
+
+adp_dtset <- read.table(file.choose())
+muscle_dtset <- read.table(file.choose())
+trim_dtset = merge(adp_dtset, muscle_dtset, by = 1, all.x = TRUE)
+ 
+final_aging_dtset <- merge( new_df, trim_dtset, by = 1, all.x = TRUE)
+final_aging_dt<- as.data.frame(final_aging_dtset) 
+write.csv(final_aging_dtset, file= "D:\6_month_dissertation\final_aging_dtset.csv")
+
+GSE159217<-read.csv(file.choose())
